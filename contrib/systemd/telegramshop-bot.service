@@ -1,0 +1,15 @@
+[Unit]
+Description=Telegram shop bot
+Wants=network-online.target
+Wants=redis.service
+After=network-online.target
+After=redis.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/var/www/telegramshop-bot
+ExecStart=/var/www/telegramshop-bot/venv/bin/python /var/www/telegramshop-bot/run.py -c /etc/telegramshop-bot.conf -l /var/log/telegramshop-bot.log
+
+[Install]
+WantedBy=multi-user.target

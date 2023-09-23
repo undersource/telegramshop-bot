@@ -1,0 +1,33 @@
+#!/sbin/openrc-run
+
+description="Telegram shop bot"
+
+name=$RC_SVCNAME
+
+command="/var/www/$name/venv/bin/python /var/www/$name/run.py"
+command_args="-c /etc/$name.conf -l /var/log/$name.log"
+pidfile="/run/$name.pid"
+
+depend() {
+    need net
+    need redis
+}
+
+start() {
+	ebegin "Starting $name"
+    cd /var/www/$name
+	start-stop-daemon -bm -S -u root:root -p $pidfile -x $command -- $command_args
+	eend $?
+}
+
+stop() {
+    ebegin "Stopping $name"
+    start-stop-daemon -K -p $pidfile
+    eend $?
+}
+
+restart() {
+    stop
+    sleep 1
+    start
+}
