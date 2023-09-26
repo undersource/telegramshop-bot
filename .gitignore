@@ -4,4 +4,4 @@ images
 files
 __pycache__
 venv
-telegramshop-bot.conf
+/telegramshop-bot.conf
