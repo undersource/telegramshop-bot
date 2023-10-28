@@ -20,7 +20,7 @@ Working directory is in `/var/www/telegramshop-bot`
 
 ```
 python -m venv venv
-source venv/bin/activate
+. venv/bin/activate
 pip install -U pip
 pip install -r requirements.txt
 ```
