@@ -630,19 +630,17 @@ async def mark_as_delivered(call: CallbackQuery):
 
     if query is not None:
         order_id = call.data.split(':')[1]
-        query = session.query(Order).filter(Order.id == order_id).first()
 
-        if query.delivered is False:
-            session.query(Order).filter(Order.id == order_id).update(
-                {"delivered": True}
-            )
-            session.commit()
+        session.query(Order).filter(Order.id == order_id).update(
+            {"delivered": True}
+        )
+        session.commit()
 
-            await call.message.answer(
-                "Order {order_id} has been marked as delivered".format(
-                    order_id=order_id
-                )
+        await call.message.answer(
+            "Order {order_id} has been marked as delivered".format(
+                order_id=order_id
             )
+        )
 
 
 def register_handlers_admin(dp: Dispatcher):
