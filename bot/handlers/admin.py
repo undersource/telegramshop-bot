@@ -201,14 +201,15 @@ async def process_product_discount(message: Message, state: FSMContext):
             reply_markup=markup,
         )
 
-    if int(discount) >= 100:
+    if int(discount) >= 100 and int(discount) <= 0:
         skip_b = InlineKeyboardButton(skip_m, callback_data="skip_discount")
         cancel_b = InlineKeyboardButton(cancel_m, callback_data="Cancel")
         markup = InlineKeyboardMarkup()
         markup.add(skip_b, cancel_b)
 
         return await message.reply(
-            "Discount gotta be less then 100.\nEnter again (digits only)",
+            "Discount gotta be more then 0 and less then 100.\n"
+            "Enter again (digits only)",
             reply_markup=markup,
         )
 

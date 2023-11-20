@@ -111,7 +111,7 @@ async def product_details(call: CallbackQuery):
         markup = InlineKeyboardMarkup()
         markup.add(add_to_cart_b)
 
-        if picture_path != "":
+        if picture_path is not None:
             if isfile(picture_path):
                 with open(picture_path, "rb") as picture:
                     if discount != 0:
@@ -127,8 +127,9 @@ async def product_details(call: CallbackQuery):
                         "Type: {product_type}".format(
                             name=name,
                             description="" if description is None else description,
-                            discounted_price=float(discounted_price),
+                            discount=int(discount),
                             price=float(price),
+                            discounted_price=float(discounted_price),
                             product_type="Delivered" if real else "Virtual"
                         ),
                         parse_mode="html",
@@ -142,13 +143,14 @@ async def product_details(call: CallbackQuery):
 
             await call.message.answer(
                 "{name}\n\n"
-                "{description}\n\n"
-                "${discounted_price}    <del>${price}</del>\n\n"
+                "{description}"
+                "(-{discount}%)  <del>${price}</del>  ${discounted_price}\n\n"
                 "Type: {product_type}".format(
                     name=name,
-                    description="" if description is None else description,
-                    discounted_price=float(discounted_price),
+                    description="" if description is None else description + "\n\n",
+                    discount=int(discount),
                     price=float(price),
+                    discounted_price=float(discounted_price),
                     product_type="Delivered" if real else "Virtual"
                 ),
                 parse_mode="html",
