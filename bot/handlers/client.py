@@ -111,28 +111,29 @@ async def product_details(call: CallbackQuery):
         markup = InlineKeyboardMarkup()
         markup.add(add_to_cart_b)
 
-        if isfile(picture_path):
-            with open(picture_path, "rb") as picture:
-                if discount != 0:
-                    discounted_price = price - (price * discount / 100)
-                else:
-                    discounted_price = price
+        if picture_path != "":
+            if isfile(picture_path):
+                with open(picture_path, "rb") as picture:
+                    if discount != 0:
+                        discounted_price = price - (price * discount / 100)
+                    else:
+                        discounted_price = price
 
-                await call.message.answer_photo(
-                    picture,
-                    "{name}\n\n"
-                    "{description}\n\n"
-                    "${discounted_price}    <del>${price}</del>\n\n"
-                    "Type: {product_type}".format(
-                        name=name,
-                        description="" if description is None else description,
-                        discounted_price=float(discounted_price),
-                        price=float(price),
-                        product_type="Delivered" if real else "Virtual"
-                    ),
-                    parse_mode="html",
-                    reply_markup=markup
-                )
+                    await call.message.answer_photo(
+                        picture,
+                        "{name}\n\n"
+                        "{description}\n\n"
+                        "(-{discount}%)  <del>${price}</del>  ${discounted_price}\n\n"
+                        "Type: {product_type}".format(
+                            name=name,
+                            description="" if description is None else description,
+                            discounted_price=float(discounted_price),
+                            price=float(price),
+                            product_type="Delivered" if real else "Virtual"
+                        ),
+                        parse_mode="html",
+                        reply_markup=markup
+                    )
         else:
             if discount != 0:
                 discounted_price = price - (price * discount / 100)
