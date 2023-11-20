@@ -13,6 +13,7 @@ from bot.misc.database import Shop, User
 from bot.misc.database import Product, Order, OrderedProduct, CustomerAddress
 from bot.misc.database import Shipping
 from bot.misc.config import config
+from bot.misc.logger import logger
 from bot.keyboards.dialogs import *
 
 PAYMENTS_TOKEN = config["aiogram"]["PAYMENTS_TOKEN"]
@@ -59,6 +60,10 @@ async def start(message: Message):
             "Welcome {name}!".format(name=message.from_user.full_name),
             reply_markup=markup
         )
+
+    logger.info(
+        "{name} has been started".format(name=message.from_user.username)
+    )
 
 
 async def list_products(call: CallbackQuery):
@@ -515,6 +520,13 @@ async def paid(message: Message):
             else:
                 with open(query.file_path, "rb") as file:
                     await message.answer_document(file)
+
+            logger.info(
+                "{name} make order {order_id}".format(
+                    name=message.from_user.username,
+                    order_id=order.id
+                )
+            )
 
 
 async def admin(message: Message):

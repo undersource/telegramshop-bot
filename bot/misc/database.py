@@ -45,6 +45,12 @@ class User(Base):
     name = Column("name", Text, nullable=False, unique=True, index=True)
 
 
+class Category(Base):
+    __tablename__ = "categories"
+
+    name = Column("name", Text, nullable=False, unique=True, index=True)
+
+
 class Product(Base):
     __tablename__ = "products"
 
@@ -55,6 +61,12 @@ class Product(Base):
     picture_path = Column("picture_path", Text)
     file_path = Column("file_path", Text)
     real = Column("real", Boolean, nullable=False, index=True)
+    category_id = Column(
+        "category_id",
+        Integer,
+        ForeignKey("categories.id"),
+        nullable=True
+    )
 
 
 class Order(Base):
