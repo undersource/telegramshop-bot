@@ -6,6 +6,7 @@ from aiogram.utils.executor import start_webhook, start_polling
 from bot.handlers.client import register_handlers_client
 from bot.handlers.admin import register_handlers_admin
 from bot.keyboards.dialogs import *
+from bot.misc.database import r
 from bot.misc.config import config
 from bot.misc.logger import logger
 
@@ -38,6 +39,12 @@ class TelegramBot:
         logger.warning('Bye!')
 
     def run(self):
+        try:
+            r.ping()
+        except:
+            print("For first run Redis!")
+            exit(1)
+
         if config["aiogram"]["MODE"].lower() == "prod":
             start_webhook(
                 dispatcher=self.dp,

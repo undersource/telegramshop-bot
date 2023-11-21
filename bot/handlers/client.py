@@ -10,8 +10,8 @@ from os.path import isfile
 from bot.misc.settings import IMAGES_ROOT
 from bot.misc.database import session, r
 from bot.misc.database import Shop, User
-from bot.misc.database import Product, Order, OrderedProduct, CustomerAddress
-from bot.misc.database import Shipping
+from bot.misc.database import Category, Product, Shipping
+from bot.misc.database import Order, OrderedProduct, CustomerAddress
 from bot.misc.config import config
 from bot.misc.logger import logger
 from bot.keyboards.dialogs import *
@@ -21,7 +21,12 @@ PAYMENTS_TOKEN = config["aiogram"]["PAYMENTS_TOKEN"]
 
 async def start(message: Message):
     user_id = message.from_user.id
+    categories = session.query(Category).all()
 
+    list_categories_b = InlineKeyboardButton(
+        list_categories_m,
+        callback_data=list_categories_m
+    )
     list_products_b = InlineKeyboardButton(
         list_products_m,
         callback_data=list_products_m
@@ -38,7 +43,10 @@ async def start(message: Message):
 
     cart = r.hgetall(user_id)
 
-    markup.add(list_products_b)
+    if categories != []:
+        markup.add(list_categories_b, list_products_b)
+    else:
+        markup.add(list_products_b)
 
     if cart != {}:
         markup.add(cart_b, empty_cart_b)
@@ -64,6 +72,68 @@ async def start(message: Message):
     logger.info(
         "{name} has been started".format(name=message.from_user.username)
     )
+
+
+async def list_categories(call: CallbackQuery):
+    queries = session.query(Category).all()
+
+    markup = InlineKeyboardMarkup()
+
+    if queries != []:
+        for query in queries:
+            category_b = InlineKeyboardButton(
+                query.name,
+                callback_data=f"category:{query.id}"
+            )
+            markup.add(category_b)
+
+        await call.message.answer("All categories:", reply_markup=markup)
+    else:
+        cart_b = InlineKeyboardButton(
+            cart_m,
+            callback_data=cart_m
+        )
+        markup.add(cart_b)
+
+        await call.message.answer(
+            "Now, we haven't categories",
+            reply_markup=markup
+        )
+
+
+async def category_details(call: CallbackQuery):
+    category_id = call.data.split(':')[1]
+    category = session.query(Category).filter(
+        Category.id.in_((category_id,))
+    ).first()
+    queries = session.query(Product).filter(
+        Product.category_id.in_((category_id,))
+    ).all()
+
+    markup = InlineKeyboardMarkup()
+
+    if queries != []:
+        for query in queries:
+            product_b = InlineKeyboardButton(
+                query.name,
+                callback_data=f"product:{query.id}"
+            )
+            markup.add(product_b)
+
+        await call.message.answer(
+            "{name}: ".format(name=category.name), reply_markup=markup
+        )
+    else:
+        cart_b = InlineKeyboardButton(
+            cart_m,
+            callback_data=cart_m
+        )
+        markup.add(cart_b)
+
+        await call.message.answer(
+            "Now, we haven't products in this category",
+            reply_markup=markup
+        )
 
 
 async def list_products(call: CallbackQuery):
@@ -538,6 +608,8 @@ async def admin(message: Message):
     if query is not None:
         change_faq_b = KeyboardButton(change_faq_m)
         list_orders_b = KeyboardButton(list_orders_m)
+        add_category_b = KeyboardButton(add_category_m)
+        del_category_b = KeyboardButton(del_category_m)
         add_product_b = KeyboardButton(add_product_m)
         del_product_b = KeyboardButton(del_product_m)
         add_shipping_b = KeyboardButton(add_shipping_m)
@@ -546,6 +618,8 @@ async def admin(message: Message):
         admin_markup.add(
             change_faq_b,
             list_orders_b,
+            add_category_b,
+            del_category_b,
             add_product_b,
             del_product_b,
             add_shipping_b,
@@ -557,6 +631,11 @@ async def admin(message: Message):
 
 def register_handlers_client(dp: Dispatcher):
     dp.register_message_handler(start, commands=["start"])
+    dp.register_callback_query_handler(list_categories, text=list_categories_m)
+    dp.register_callback_query_handler(
+        category_details,
+        lambda call: call.data.split(':')[0] == "category"
+    )
     dp.register_callback_query_handler(list_products, text=list_products_m)
     dp.register_callback_query_handler(
         product_details,

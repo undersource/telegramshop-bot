@@ -5,6 +5,7 @@ from sqlalchemy.sql import func
 from bot.misc.config import config
 from bot.misc.logger import logger
 from redis import Redis
+from redis.exceptions import ConnectionError
 
 DB_TYPE = config["database"]["TYPE"]
 DB_HOST = config["database"]["HOST"]

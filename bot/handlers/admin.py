@@ -5,17 +5,22 @@ from aiogram.types import Message, CallbackQuery
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from bot.misc.settings import PRODUCT_IMAGES_DIR, VIRTUAL_PRODUCTS_DIR
 from bot.misc.database import session
-from bot.misc.database import User, Product, Shipping, Shop
+from bot.misc.database import User, Category, Product, Shipping, Shop
 from bot.misc.database import Order, OrderedProduct, CustomerAddress
-from bot.misc.utils import addProduct, addShipping
+from bot.misc.utils import addCategory, addProduct, addShipping
 from bot.keyboards.dialogs import *
 from os import remove
 from os.path import isfile
 
 
+class FSMCategory(StatesGroup):
+    name = State()
+
+
 class FSMProduct(StatesGroup):
     real = State()
     name = State()
+    category = State()
     description = State()
     price = State()
     discount = State()
@@ -30,6 +35,81 @@ class FSMShipping(StatesGroup):
 
 class FSMShop(StatesGroup):
     faq = State()
+
+
+async def add_category(message: Message):
+    username = message.from_user.username
+    query = session.query(User).filter(User.name.in_((username,))).first()
+
+    if query is not None:
+        cancel_b = InlineKeyboardButton(cancel_m, callback_data="cancel")
+        markup = InlineKeyboardMarkup()
+        markup.add(cancel_b)
+
+        await FSMCategory.name.set()
+        await message.answer("Enter name of category", reply_markup=markup)
+
+
+async def adding_category(message: Message, state: FSMContext):
+    name = message.text
+    query = session.query(Category).filter(Category.name == name).first()
+
+    if query is not None:
+        cancel_b = InlineKeyboardButton(cancel_m, callback_data="cancel")
+        markup = InlineKeyboardMarkup()
+        markup.add(cancel_b)
+
+        return await message.reply(
+            "Category with name {name} exists.\nEnter again".format(name=name),
+            reply_markup=markup,
+        )
+
+    addCategory(name)
+
+    await message.answer(
+        "Category \"{name}\" has been added".format(name=name)
+    )
+    await state.finish()
+
+
+async def delete_category(message: Message):
+    username = message.from_user.username
+    query = session.query(User).filter(User.name.in_((username,))).first()
+
+    if query is not None:
+        queries = session.query(Category).all()
+
+        markup = InlineKeyboardMarkup()
+
+        if queries != []:
+            for query in queries:
+                category_b = InlineKeyboardButton(
+                    query.name, callback_data=f"del_category:{query.id}"
+                )
+                markup.add(category_b)
+
+            await message.answer(
+                "Choose category to delete:",
+                reply_markup=markup
+            )
+        else:
+            await message.answer("No categories")
+
+
+async def deleting_category(call: CallbackQuery):
+    category_id = call.data.split(":")[1]
+
+    query = session.query(Category).filter(
+        Category.id.in_((category_id,))
+    ).first()
+
+    if query is not None:
+        name = query.name
+
+        session.delete(query)
+        session.commit()
+
+        await call.message.answer("{name} has been deleted".format(name=name))
 
 
 async def add_product(message: Message):
@@ -79,31 +159,86 @@ async def process_product_name(message: Message, state: FSMContext):
             reply_markup=markup,
         )
 
+    async with state.proxy() as data:
+        data["name"] = name
+
+    queries = session.query(Category).all()
+
+    markup = InlineKeyboardMarkup()
+
+    if queries != []:
+        for query in queries:
+            category_b = InlineKeyboardButton(
+                query.name,
+                callback_data=f"category:{query.id}"
+            )
+            markup.add(category_b)
+
+        skip_b = InlineKeyboardButton(skip_m, callback_data="skip_category")
+        cancel_b = InlineKeyboardButton(cancel_m, callback_data="cancel")
+        markup.add(skip_b, cancel_b)
+
+        await FSMProduct.next()
+        await message.reply("Choose category of product", reply_markup=markup)
+    else:
+        skip_b = InlineKeyboardButton(skip_m, callback_data="skip_description")
+        cancel_b = InlineKeyboardButton(cancel_m, callback_data="cancel")
+        markup = InlineKeyboardMarkup()
+        markup.add(skip_b, cancel_b)
+
+        async with state.proxy() as data:
+            data["category"] = None
+
+        await FSMProduct.next()
+        await call.message.reply(
+            "Enter description of product", reply_markup=markup
+        )
+       
+
+async def skipped_process_product_category(
+    call: CallbackQuery,
+    state: FSMContext
+):
     skip_b = InlineKeyboardButton(skip_m, callback_data="skip_description")
     cancel_b = InlineKeyboardButton(cancel_m, callback_data="cancel")
     markup = InlineKeyboardMarkup()
     markup.add(skip_b, cancel_b)
 
     async with state.proxy() as data:
-        data["name"] = name
+        data["category"] = None
 
     await FSMProduct.next()
-    await message.reply("Enter description of product", reply_markup=markup)
+    await call.message.reply(
+        "Enter description of product", reply_markup=markup
+    )
+
+
+async def process_product_category(call: CallbackQuery, state: FSMContext):
+    category_id = call.data.split(":")[1]
+
+    skip_b = InlineKeyboardButton(skip_m, callback_data="skip_description")
+    cancel_b = InlineKeyboardButton(cancel_m, callback_data="cancel")
+    markup = InlineKeyboardMarkup()
+    markup.add(skip_b, cancel_b)
+
+    async with state.proxy() as data:
+        data["category"] = category_id
+
+    await FSMProduct.next()
+    await call.message.reply("Enter description of product", reply_markup=markup)
 
 
 async def skipped_process_product_description(
     call: CallbackQuery,
     state: FSMContext
 ):
-    description = None
-
     skip_b = InlineKeyboardButton(skip_m, callback_data="skip_price")
     cancel_b = InlineKeyboardButton(cancel_m, callback_data="cancel")
     markup = InlineKeyboardMarkup()
     markup.add(skip_b, cancel_b)
 
     async with state.proxy() as data:
-        data["description"] = description
+        data["description"] = None
 
     await FSMProduct.next()
     await call.message.reply("Enter price of product", reply_markup=markup)
@@ -249,6 +384,7 @@ async def skipped_process_product_photo(
             picture_path = None
             file_path = None
             real = data["real"]
+            category = data["category"]
 
             addProduct(
                 name,
@@ -257,7 +393,8 @@ async def skipped_process_product_photo(
                 discount,
                 picture_path,
                 file_path,
-                real
+                real,
+                category
             )
 
             await call.message.answer(
@@ -295,6 +432,7 @@ async def process_product_photo(message: Message, state: FSMContext):
             picture_path = f"{PRODUCT_IMAGES_DIR}/{data['name']}"
             file_path = None
             real = data["real"]
+            category = data["category"]
 
             addProduct(
                 name,
@@ -303,7 +441,8 @@ async def process_product_photo(message: Message, state: FSMContext):
                 discount,
                 picture_path,
                 file_path,
-                real
+                real,
+                category
             )
 
             if IsDocument:
@@ -343,6 +482,7 @@ async def process_product_file(message: Message, state: FSMContext):
         await message.document.download(destination_file=file_path)
 
         real = data["real"]
+        category = data["category"]
 
         addProduct(
             name,
@@ -351,7 +491,8 @@ async def process_product_file(message: Message, state: FSMContext):
             discount,
             picture_path,
             file_path,
-            real
+            real,
+            category
         )
 
     await message.answer(
@@ -547,8 +688,7 @@ async def change_faq(message: Message):
 async def changing_faq(message: Message, state: FSMContext):
     shop = session.query(Shop).filter(Shop.id == 1).first()
 
-    if shop:
-        shop.welcome = message.text
+    shop.welcome = message.text
 
     session.add(shop)
     session.commit()
@@ -656,6 +796,17 @@ async def mark_as_delivered(call: CallbackQuery):
 
 
 def register_handlers_admin(dp: Dispatcher):
+    dp.register_message_handler(add_category, text=add_category_m, state=None)
+    dp.register_message_handler(
+        adding_category,
+        content_types=["text"],
+        state=FSMCategory.name
+    )
+    dp.register_message_handler(delete_category, text=del_category_m)
+    dp.register_callback_query_handler(
+        deleting_category,
+        lambda call: call.data.split(":")[0] == "del_category"
+    )
     dp.register_message_handler(add_product, text=add_product_m, state=None)
     dp.register_callback_query_handler(
         process_product_type,
@@ -666,6 +817,16 @@ def register_handlers_admin(dp: Dispatcher):
         process_product_name,
         content_types=["text"],
         state=FSMProduct.name
+    )
+    dp.register_callback_query_handler(
+        skipped_process_product_category,
+        text="skip_category",
+        state=FSMProduct.category
+    )
+    dp.register_callback_query_handler(
+        process_product_category,
+        lambda call: call.data.split(":")[0] == "category",
+        state=FSMProduct.category
     )
     dp.register_callback_query_handler(
         skipped_process_product_description,

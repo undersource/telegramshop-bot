@@ -1,5 +1,13 @@
 from bot.misc.database import session
-from bot.misc.database import Product, Shipping
+from bot.misc.database import Category, Product, Shipping
+
+
+def addCategory(name: str):
+    category = Category()
+    category.name = name
+
+    session.add(category)
+    session.commit()
 
 
 def addProduct(
@@ -9,7 +17,8 @@ def addProduct(
     discount: float,
     picture_path: str,
     file_path: str,
-    real: bool
+    real: bool,
+    category: str
 ):
     product = Product()
     product.name = name
@@ -27,6 +36,7 @@ def addProduct(
         product.file_path = file_path
 
     product.real = real
+    product.category_id = category
 
     session.add(product)
     session.commit()
