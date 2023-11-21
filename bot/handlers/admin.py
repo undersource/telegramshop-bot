@@ -189,8 +189,8 @@ async def process_product_name(message: Message, state: FSMContext):
         async with state.proxy() as data:
             data["category"] = None
 
-        await FSMProduct.next()
-        await call.message.reply(
+        await FSMProduct.description.set()
+        await message.reply(
             "Enter description of product", reply_markup=markup
         )
        
