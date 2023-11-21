@@ -688,7 +688,8 @@ async def change_faq(message: Message):
 async def changing_faq(message: Message, state: FSMContext):
     shop = session.query(Shop).filter(Shop.id == 1).first()
 
-    shop.welcome = message.text
+    if shop:
+        shop.welcome = message.text
 
     session.add(shop)
     session.commit()
