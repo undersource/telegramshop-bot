@@ -686,12 +686,18 @@ async def change_faq(message: Message):
 
 
 async def changing_faq(message: Message, state: FSMContext):
-    shop = session.query(Shop).filter(Shop.id == 1).first()
+    query = session.query(Shop).filter(Shop.id == 1).first()
 
-    if shop:
+    if query is not None:
+        query.welcome = message.text
+
+        session.add(query)
+    else:
+        shop = Shop()
         shop.welcome = message.text
 
-    session.add(shop)
+        session.add(shop)
+
     session.commit()
 
     await message.answer("FAQ has been changed")
